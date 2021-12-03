@@ -4,8 +4,9 @@ import cv2
 import numpy as np
 from scipy.spatial.distance import directed_hausdorff
 import pandas as pd
+import traceback
 
-gt_path = 'F:\\obrazy\\gt\\'
+gt_path = './labeling/gt/'
 dataset_0_masks = 'F:\\obrazy\\bez masek\\preds\\*'
 dataset_50_masks = 'F:\\obrazy\\50masek\\preds\\*'
 dataset_100_masks = 'F:\\obrazy\\100masek\\preds\\*'
@@ -23,6 +24,10 @@ dataset_0_thresholded='F:\\obrazy2\\bez masek\\thresholded\\'
 dataset_100_thresholded='F:\\obrazy2\\100masek\\thresholded\\'
 
 def calc_dice(im1, im2):
+    """
+    output between 0 and 1, measures the overlap of the two binary images
+    1=> full overlap
+    """
     im1 = np.asarray(im1).astype(np.bool)
     im2 = np.asarray(im2).astype(np.bool)
     intersection = np.logical_and(im1, im2)
@@ -52,24 +57,30 @@ def get_df(path):
 
     for list_idx, filepath in enumerate(dataset):
         filename = os.path.basename(filepath)
+        
+        try:
+            img = cv2.imread(filepath)
+            gt = cv2.imread(gt_path + filename)
+            img_postprocessed = do_dilation(img)
+            gt_postprocessed = do_dilation(gt)
+
+            dice_val = calc_dice(gt_postprocessed, img_postprocessed)        
+
+            img = cv2.imread(filepath)
+            img_skelet = do_threshold(img)
+            gt_skelet = do_threshold(gt)
+
+            hd = calc_hf(img_skelet,gt_skelet)
+        except cv2.error as e:
+            print(f"error on file {filename}:")
+            traceback.print_exc()
+            continue
+
+        hds.append(hd)
         names.append(filename)
-
-        img = cv2.imread(filepath)
-        img_postprocessed = do_dilation(img)
-
-        gt = cv2.imread(gt_path + filename)
-        gt_postprocessed = do_dilation(gt)
-
-        dice_val = calc_dice(gt_postprocessed, img_postprocessed)
         dices.append(dice_val)
 
-        img_skelet = do_threshold(img)
-        gt_skelet = do_threshold(gt)
-
-        hd = calc_hf(img_skelet,gt_skelet)
-        hds.append(hd)
-
-    df = pd.DataFrame({'Nazwa pliku': names, 'DICE': dices, 'Hausdorff': hds})
+    df = pd.DataFrame({'Image names': names, 'DICE': dices, 'Hausdorff': hds})
     return df
 
 def prepare_skel_dil_imgs(dataset,dest_skelet_dil):
@@ -79,19 +90,31 @@ def prepare_skel_dil_imgs(dataset,dest_skelet_dil):
         img_process = do_dilation(img)
         cv2.imwrite(dest_skelet_dil + filename, img_process)
 
-dataset50 = sorted(glob.glob(dataset_50_masks))
-dataset100=sorted(glob.glob(dataset_100_masks))
-dataset0=sorted(glob.glob(dataset_0_masks))
+# def main():
+#     dataset50 = sorted(glob.glob(dataset_50_masks))
+#     dataset100=sorted(glob.glob(dataset_100_masks))
+#     dataset0=sorted(glob.glob(dataset_0_masks))
 
-prepare_skel_dil_imgs(dataset50,dataset_50_seklet_dil)
-prepare_skel_dil_imgs(dataset100,dataset_100_skelet_dil)
-prepare_skel_dil_imgs(dataset0,dataset_0_thresholded)
+#     prepare_skel_dil_imgs(dataset50,dataset_50_seklet_dil)
+#     prepare_skel_dil_imgs(dataset100,dataset_100_skelet_dil)
+#     prepare_skel_dil_imgs(dataset0,dataset_0_thresholded)
 
-writer = pd.ExcelWriter('results.xlsx', engine='openpyxl')
+#     writer = pd.ExcelWriter('results.xlsx', engine='openpyxl')
 
-get_df(dataset_0_masks).to_excel(writer, sheet_name='0%')
-get_df(dataset_50_masks).to_excel(writer, sheet_name='50%')
-get_df(dataset_100_masks).to_excel(writer, sheet_name='100%')
+#     get_df(dataset_0_masks).to_excel(writer, sheet_name='0%')
+#     get_df(dataset_50_masks).to_excel(writer, sheet_name='50%')
+#     get_df(dataset_100_masks).to_excel(writer, sheet_name='100%')
 
-writer.save()
-writer.close()
+#     writer.save()
+#     writer.close()
+
+if __name__ == '__main__':
+    writer = pd.ExcelWriter('results.xlsx', engine='openpyxl')
+    df = get_df('./labeling/masks_generated/*')
+    print(df)
+    df.to_excel(writer, sheet_name='lol')
+    writer.save()
+    writer.close()
+
+    print("=====================")
+    print(f"means: DICE {df['DICE'].mean()}, Hausdorff: {df['Hausdorff'].mean()}")

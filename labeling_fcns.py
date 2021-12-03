@@ -6,8 +6,10 @@ window_size=21
 margin=10
 blockSize=window_size*window_size
 middle_pixel=int((window_size-1)/2)
-h=200
-w=100
+#h=200
+#w=100
+h=220
+w=120
 
 from snorkel.preprocess import preprocessor
 @preprocessor(memoize=True)
@@ -15,8 +17,11 @@ def to_gray(x):
     return cv2.cvtColor(x, cv2.COLOR_BGR2GRAY)
 
 def getMiddlePixel(x):
-        y = x[middle_pixel, middle_pixel]
-        return 0 if y>0 else 1
+    m_x, m_y = x.shape
+    m_x = int(m_x/2)
+    m_y = int(m_y/2)
+    y = x[m_x, m_y]
+    return 0 if y>0 else 1
 
 @labeling_function(pre=[to_gray])
 def adaptiveThreshold_gaussian_lf(x):
