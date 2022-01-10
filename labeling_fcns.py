@@ -1,6 +1,7 @@
 import numpy as np
 from snorkel.labeling import labeling_function
 import cv2
+#from caching import image_caching, clear
 
 window_size=9
 margin=10
@@ -35,6 +36,7 @@ def getMiddlePixel(x):
 
 @labeling_function(pre=[to_gray])
 def adaptiveThreshold_gaussian_lf(x):
+    #x=cv2.cvtColor(x, cv2.COLOR_BGR2GRAY)
     thresh = cv2.adaptiveThreshold(x, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, window_size,1)
     closing = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
     thresh_erode = cv2.morphologyEx(closing, cv2.MORPH_ERODE, np.ones((2, 2), np.uint8))

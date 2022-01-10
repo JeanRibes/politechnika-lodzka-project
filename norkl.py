@@ -17,7 +17,7 @@ class LabelingFunction:
         return _image
 
     def cached_image(self,image):
-        image_hash = hash(image)
+        image_hash = id(image)
         cached = self.cache.get(image_hash)
         if cached is not None:
             return cached
@@ -28,8 +28,8 @@ class LabelingFunction:
         processed_image = self.cached_image(image)
         return self.f(processed_image,x,y)
 
-def labeling_function_decorator(preprocessors=[]):
-    def wrapper(labeling_function):
+def labeling_function(preprocessors: List[_ImagePreprocessor]=[]):
+    def wrapper(labeling_function:_LabelingFunction):
         return LabelingFunction(labeling_function, preprocessors)
     return wrapper
 
@@ -41,7 +41,7 @@ class Applier:
         out = []
         for lf in self.labeling_functions:
             out.append(lf(image, x, y))
-        return out
+        return [out]
 
     def __call__(self, preprocessors: List[_ImagePreprocessor]=[]):
         def wrapper(f):
@@ -50,29 +50,32 @@ class Applier:
             return wf
         return wrapper
 
-def to_gray(image):
-    print("preprocesssed to_gray")
-    return image + "gray"
-
-def to_color(image):
-    print("preprocessed to_color")
-    return image + "color"
-
-def invert(image):
-    print("preprocessed invert")
-    return ''.join( reversed(image) )
-
-@labeling_function_decorator(preprocessors=[to_gray])
-def l_f0(image, x, y) -> bool:
-    return f"{x},{y}:lf0:{image}"
-
-@labeling_function_decorator(preprocessors=[to_color,invert])
-def l_f1(image, x, y) -> bool:
-    return f"{x},{y}:lf1:{image}"
-
-
 
 if __name__ == '__main__':
+    def to_gray(image):
+        print("preprocesssed to_gray")
+        return image + "gray"
+
+
+    def to_color(image):
+        print("preprocessed to_color")
+        return image + "color"
+
+
+    def invert(image):
+        print("preprocessed invert")
+        return ''.join(reversed(image))
+
+
+    @labeling_function(preprocessors=[to_gray, lambda x: x + "lol"])
+    def l_f0(image, x, y) -> bool:
+        return f"{x},{y}:lf0:{image}"
+
+
+    @labeling_function(preprocessors=[to_color, invert])
+    def l_f1(image, x, y) -> bool:
+        return f"{x},{y}:lf1:{image}"
+
     applier = Applier(labeling_functions=[l_f0,l_f1])
     img0 = "image"
     print(applier.apply(img0, 0, 0))
