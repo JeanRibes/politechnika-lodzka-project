@@ -4,13 +4,13 @@ import time
 
 import cv2
 import numpy as np
-from snorkel.labeling import LFApplier
 from snorkel.labeling.model import LabelModel
-from labeling_fcns import lfs, window_size, h, w
-from gold_labels import get_gold_labels
+from labeling_fcns import h, w
 from collections import namedtuple
 from pathlib import Path
 
+from norkl import Applier
+from labeling_functions2 import labeling_functions
 PixelData = namedtuple('PixelData', ['labels', 'x', 'y'])
 Picture = namedtuple('Picture', ['pixels', 'filename'])
 
@@ -24,73 +24,22 @@ images_sorted = sorted(glob.glob(source_path + '*'))
 source_files = set(Path(x).name for x in glob.glob('labeling/source/*'))
 generated_files = set(Path(x).name for x in glob.glob('labeling/masks_generated/*'))
 
-to_process = source_files - generated_files
+#to_process = source_files - generated_files
+to_process = sorted(list(source_files))
 to_process = [source_path + filename for filename in to_process]
+to_process.sort()
+#to_process = to_process[0:1]
+#to_process = ['labeling/source/1_0.png']
 print(to_process)
-
-images_splitted = np.array_split(to_process, 26)
 
 rows = h
 cols = w
 
-if True:
-    L_train = []
-    applier = LFApplier(lfs)
-    image = cv2.imread('labeling/source/1_0.png')
-    filtered_image = cv2.bilateralFilter(image, 9, 75, 75)
-    image_pixels = []
-    rows, cols, _ = image.shape
-    print(rows, cols)
-    start = time.time()
-    for x in range(0, rows):
-        for y in range(0, cols):
-            cutted_image = filtered_image[x:(x + window_size), y:(y + window_size)]
-            output_labels = applier.apply([cutted_image], progress_bar=False)
-            pixelData = PixelData(output_labels, x, y)
-            image_pixels.append(pixelData)
-            L_train.append(output_labels[0])
-    run_time = time.time() - start
-    print(f"labeling functions took {run_time}s")
-    print("training data")
-    label_model = LabelModel(cardinality=2, verbose=False, device='cpu')
-    label_model.fit(L_train=np.array(L_train), seed=123, log_freq=1)
-
-    image = np.zeros((rows, cols))
-    for pixel in image_pixels:
-        pred = label_model.predict(pixel.labels)
-        if pred > 0:
-            pred = 255
-        else:
-            pred = 0
-        image[pixel.x, pixel.y] = pred
-    cv2.imwrite('labeling/masks_generated/1_0.png', image)
-    exit(0)
-
-if False:
-    filtered_image = cv2.bilateralFilter(cv2.imread('labeling/source/2_0.png'), 9, 75, 75)
-    image_pixels = []
-    rows, cols = image.shape
-    image = np.zeros((rows, cols))
-    for x in range(0, rows):
-        for y in range(0, cols):
-            cutted_image = filtered_image[x:(x + window_size), y:(y + window_size)]
-            output_labels = applier.apply([cutted_image], progress_bar=False)
-            pred = label_model.predict(output_labels)
-            if pred == 0:
-                pred = 0
-            elif pred == 1:
-                pred = 255
-            else:
-                pred = 128
-            image[x, y] = pred
-    cv2.imwrite('labeling/masks_generated/2_0.png', image)
-
-exit(0)
-
 L_train = []
-applier = LFApplier(lfs)
+applier = Applier(labeling_functions)
 pictures = []
-for filepath in to_process:
+
+for filepath in to_process[0:1]:
     print(f"learning {filepath}")
     filename = os.path.basename(filepath)
     image = cv2.imread(filepath)
@@ -98,8 +47,7 @@ for filepath in to_process:
     filtered_image = cv2.bilateralFilter(image, 9, 75, 75)
     for x in range(0, rows):
         for y in range(0, cols):
-            cutted_image = filtered_image[x:(x + window_size), y:(y + window_size)]
-            output_labels = applier.apply([cutted_image], progress_bar=False)
+            output_labels = np.array(applier.apply(filtered_image, x, y))
             pixelData = PixelData(output_labels, x, y)
             image_pixels.append(pixelData)
             L_train.append(output_labels[0])
@@ -107,13 +55,9 @@ for filepath in to_process:
     picture = Picture(image_pixels, filepath)
     pictures.append(picture)
 
-    L = np.array(L_train)
-for filepath in to_process:
-    print("training data")
-    label_model = LabelModel(cardinality=2, verbose=False, device='cpu')
-    # label_model = LabelModel(cardinality=2, verbose=True,device='cuda')
-    print("fitting data")
-    label_model.fit(L_train=L, seed=123, log_freq=1)
+label_model = LabelModel(cardinality=2, verbose=False, device='cpu')
+L = np.array(L_train)
+label_model.fit(L_train=L, seed=123, log_freq=1)
 
 print("predicting images")
 for picture in pictures:
@@ -121,13 +65,14 @@ for picture in pictures:
     for pixel in picture.pixels:
         pred = label_model.predict(pixel.labels)
         if pred > 0:
-            pred = 0
-        else:
             pred = 255
+        else:
+            pred = 0
         image[pixel.x, pixel.y] = pred
     current_path = dest_path + os.path.basename(picture.filename)
     cv2.imwrite(current_path, image)
-    print(f"written image {picture.filename}")
+    print(f"written image {current_path}")
 
 if __name__ == '__main__':
     print('bye')
+

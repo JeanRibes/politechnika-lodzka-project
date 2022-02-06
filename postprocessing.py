@@ -7,21 +7,6 @@ import pandas as pd
 import traceback
 
 gt_path = './labeling/gt/'
-dataset_0_masks = 'F:\\obrazy\\bez masek\\preds\\*'
-dataset_50_masks = 'F:\\obrazy\\50masek\\preds\\*'
-dataset_100_masks = 'F:\\obrazy\\100masek\\preds\\*'
-
-dataset_50_seklet = 'F:\\obrazy\\50masek\\skelet\\'
-dataset_100_skelet = 'F:\\obrazy\\100masek\\skelet\\'
-dataset_50_seklet_dil = 'F:\\obrazy\\50masek\\skelet+dilation+close\\'
-dataset_100_skelet_dil = 'F:\\obrazy\\100masek\\skelet+dilation+close\\'
-
-dataset_0_seklet = 'F:\\obrazy\\bez masek\\skelet\\'
-dataset_0_skelet_dil = 'F:\\obrazy\\bez masek\\skelet+dilation+close\\'
-
-dataset_50_thresholded = 'F:\\obrazy\\50masek\\thresholded\\'
-dataset_0_thresholded='F:\\obrazy2\\bez masek\\thresholded\\'
-dataset_100_thresholded='F:\\obrazy2\\100masek\\thresholded\\'
 
 def calc_dice(im1, im2):
     """
@@ -111,8 +96,9 @@ def prepare_skel_dil_imgs(dataset,dest_skelet_dil):
 if __name__ == '__main__':
     writer = pd.ExcelWriter('results.xlsx', engine='openpyxl')
     df = get_df('./labeling/masks_generated/*')
+    #df = get_df('./labeling/masks_generated/*')
     print(df)
-    df.to_excel(writer, sheet_name='lol')
+    df.to_excel(writer, sheet_name='results')
     writer.save()
     writer.close()
 
